@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwiftPlate // AI License Plate Recognition Dashboard</title>
+    <meta name="description" content="SwiftPlate — Real-time AI-powered Indian license plate detection and recognition dashboard with YOLO and EasyOCR.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom stylesheet -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Background glow elements -->
+    <div class="glow-bg glow-primary"></div>
+    <div class="glow-bg glow-secondary"></div>
+    <div class="glow-bg glow-tertiary"></div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+    <div class="app-container">
+        <!-- Header / Navigation -->
+        <header class="app-header">
+            <div class="brand">
+                <i class="fa-solid fa-microchip brand-icon"></i>
+                <div class="brand-text">
+                    <h1>SwiftPlate</h1>
+                    <span>AI LICENSE PLATE RECOGNITION</span>
+                </div>
+            </div>
+            <nav class="nav-modes" role="navigation" aria-label="Input mode selector">
+                <button id="mode-upload" class="nav-btn active" onclick="switchMode('upload')" aria-pressed="true">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Image Upload
+                </button>
+                <button id="mode-webcam" class="nav-btn" onclick="switchMode('webcam')" aria-pressed="false">
+                    <i class="fa-solid fa-camera"></i> Live Webcam
+                </button>
+            </nav>
+            <div class="header-status">
+                <span class="status-indicator online" id="status-dot"></span>
+                <span class="status-text" id="status-text">SYSTEM ONLINE</span>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Layout -->
+        <main class="dashboard-grid">
+            
+            <!-- Left Column: Input and Visual Output -->
+            <section class="visualizer-card glass-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-display header-icon"></i> Visual Feed</h2>
+                    <span class="badge" id="feed-badge">UPLOAD MODE</span>
+                </div>
+
+                <!-- Content Area for Upload Mode -->
+                <div id="upload-container" class="feed-content active">
+                    <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Drop zone: click or drag an image here">
+                        <input type="file" id="file-input" accept="image/*" style="display: none;">
+                        <div class="dropzone-content">
+                            <div class="drop-icon-wrapper">
+                                <i class="fa-solid fa-images drop-icon"></i>
+                            </div>
+                            <h3>Drag &amp; Drop Image Here</h3>
+                            <p>or click to browse files</p>
+                            <span class="file-hint"><i class="fa-solid fa-circle-info"></i> Supports JPEG, PNG, WEBP &nbsp;•&nbsp; Press <kbd>Space</kbd> to detect</span>
+                        </div>
+                    </div>
+                    
+                    <div id="preview-container" class="preview-container" style="display: none;">
+                        <div class="preview-image-wrap">
+                            <img id="annotated-preview" src="" alt="Detection result with annotated bounding boxes">
+                        </div>
+                        <button class="reset-btn" id="clear-upload-btn">
+                            <i class="fa-solid fa-rotate-left"></i> Upload New Image
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Content Area for Webcam Mode -->
+                <div id="webcam-container" class="feed-content">
+                    <div class="webcam-wrapper">
+                        <!-- Hidden Video Element for Stream Input -->
+                        <video id="webcam-video" autoplay playsinline muted style="display: none;"></video>
+                        <!-- Canvas overlay for displaying annotated frames -->
+                        <canvas id="webcam-canvas" class="webcam-canvas"></canvas>
+                        <!-- FPS counter overlay -->
+                        <div class="fps-counter" id="fps-counter" style="display:none;">
+                            <i class="fa-solid fa-gauge-high"></i> <span id="fps-value">0</span> FPS
+                        </div>
+
+                        <div class="webcam-placeholder" id="webcam-placeholder">
+                            <div class="webcam-placeholder-icon-wrap">
+                                <i class="fa-solid fa-camera-slash webcam-placeholder-icon"></i>
+                            </div>
+                            <h3>Camera Feed Closed</h3>
+                            <p>Click "Start Camera" below to initiate stream</p>
+                            <button class="primary-btn" id="start-webcam-btn">
+                                <i class="fa-solid fa-play"></i> Start Camera
+                            </button>
+                        </div>
+
+                        <div class="webcam-controls" id="webcam-controls" style="display: none;">
+                            <button class="danger-btn" id="stop-webcam-btn">
+                                <i class="fa-solid fa-stop"></i> Stop Camera
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Column: Results & History -->
+            <aside class="sidebar-results">
+                
+                <!-- Plate Detection Results Card -->
+                <section class="results-card glass-card">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-id-card header-icon"></i> Detection Results</h2>
+                    </div>
+                    <div class="results-body">
+                        <!-- Placeholder when no results -->
+                        <div id="no-results" class="no-results">
+                            <div class="empty-illustration">
+                                <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="8" y="18" width="48" height="28" rx="5" stroke="rgba(255,255,255,0.12)" stroke-width="2.5" fill="none"/>
+                                    <rect x="14" y="24" width="36" height="16" rx="3" stroke="rgba(255,255,255,0.08)" stroke-width="2" fill="none"/>
+                                    <circle cx="32" cy="50" r="3" fill="rgba(255,255,255,0.08)"/>
+                                    <circle cx="16" cy="50" r="3" fill="rgba(255,255,255,0.08)"/>
+                                    <circle cx="48" cy="50" r="3" fill="rgba(255,255,255,0.08)"/>
+                                </svg>
+                            </div>
+                            <p>Awaiting input feed...</p>
+                            <span class="empty-hint">Upload an image or start your webcam</span>
+                        </div>
+
+                        <!-- Active Results View (multi-plate support) -->
+                        <div id="active-results" class="active-results" style="display: none;">
+                            <!-- Stats bar -->
+                            <div class="stats-panel">
+                                <div class="stat-bubble">
+                                    <div class="stat-num" id="stat-latency">—</div>
+                                    <div class="stat-lbl">Response Time</div>
+                                </div>
+                                <div class="stat-bubble">
+                                    <div class="stat-num" id="stat-count">0</div>
+                                    <div class="stat-lbl">Plates Found</div>
+                                </div>
+                            </div>
+
+                            <!-- Dynamically rendered plate cards injected here -->
+                            <div id="plates-container" class="plates-container"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Detection History Log Card -->
+                <section class="history-card glass-card">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-history header-icon"></i> Detection Log</h2>
+                        <div class="history-actions">
+                            <button class="text-btn" id="clear-history-btn">Clear</button>
+                        </div>
+                    </div>
+                    <div class="history-list" id="history-list">
+                        <div class="history-empty">
+                            No detections logged yet
+                        </div>
+                    </div>
+                </section>
+
+            </aside>
+        </main>
+    </div>
+
+    <!-- UI Overlay for loading -->
+    <div id="app-overlay" class="app-overlay" style="display: none;" role="status" aria-label="Processing">
+        <div class="loader-ring">
+            <div class="loader-inner"></div>
+        </div>
+        <p id="overlay-text">Processing...</p>
+    </div>
+
+    <!-- Application Script -->
+    <script src="/static/app.js"></script>
+</body>
+</html>
